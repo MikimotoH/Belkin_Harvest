@@ -22,7 +22,7 @@ import datetime
 from datetime import datetime
 import ipdb
 import traceback
-from my_utils import uprint,ulog
+from my_utils import uprint,ulog,getFuncName
 from contextlib import suppress
 import random
 import math
@@ -31,7 +31,6 @@ driver,conn=None,None
 category,subCatg,productName,model,fileTitle='','','','',''
 prevTrail=[]
 
-charset='abcdefghijklmnopqrstuvwxyz0123456789'
 
 def retryUntilTrue(statement, timeOut:float=6.2, pollFreq:float=0.3):
     timeElap=0
@@ -50,7 +49,8 @@ def retryUntilTrue(statement, timeOut:float=6.2, pollFreq:float=0.3):
         ulog('sleep %f secs'%pollFreq)
         time.sleep(pollFreq)
         timeElap+=(time.time()-timeBegin)
-    raise TimeoutException('retryUntilTrue: timeOut=%f'%timeOut)
+    raise TimeoutException(getFuncName()+': timeOut=%f'%timeOut)
+
 
 def selectDownload():
     global driver
@@ -58,7 +58,7 @@ def selectDownload():
     pageUrl=driver.find_element_by_css_selector('iframe[name~=inlineFrame]').get_attribute('src')
     # http://www.belkin.com/us/support-article?articleNum=4879
     driver.get(pageUrl)
-    artTxt = driver.find_element_by_css_selector('div#articleContainer').text
+    artTxt = waitText('#articleContainer')
     downAnc= = next(_ for _ in getElems('a') if _.text.startswith('Download'))
     downUrl = downAnc.get_attribute('href')
     version = re.search(r'version:?\s*(\d(\.\d+)+)', artTxt).group(1)
@@ -73,61 +73,85 @@ def selectDownload():
     driver.back()
 
 def selectSupport():
-    supports=getElems(' div.icon-list-header-container ')
-    idx = next(i for i,_ in enumerate(supports) if _.text.strip().startswith('DOWNLOAD') for _ in supports)
-    downloads = supports[idx].find_elements_by_css_selector('a')
+    global prevTrail,startTrail
+    supports=getElems('.icon-list-header-container')
+    productNames=waitText('.product-name-price')
+    productName = productNames.splitlines()[0].strip()
+    # 'Wireless G Travel Router'
+    global model
+    model = productNames.splitlines()[1].strip()
+    model = model.split('#')[2].strip()
+    # 'F5D7233'
+    try:
+        support = next(_ for _ in supports if _.text.startswith('DOWNLOAD'))
+    except StopIteration:
+        ulog('no download in '+driver.current_url)
+        sql("INSERT OR REPLACE INTO TFiles(model, product_name)VALUES(:model,:productName)", glocals())
+        return
+    downloads = support.find_elements_by_css_selector('a')
     numDownloads = len(downloads)
-    for idx in range(numDownloads):
-        ulog('click "%s"'%downloads[idx].text)
-        clickElem(downloads[idx])
+    startIdx=getStartIdx()
+    for idx in range(startIdx, numDownloads):
+        txt=downloads[idx].text 
+        if model not in txt:
+            ulog('bypass "%s" because it\'s Portal'%txt)
+            continue
+        ulog('click "%s"'%txt)
+        enterElem(downloads[idx])
+        prevTrail += [idx]
         selectDownload()
-        downloads = supports[idx].find_elements_by_css_selector('a')
+        prevTrail.pop()
+        support = next(_ for _ in supports if _.text.startswith('DOWNLOAD'))
+        downloads = support.find_elements_by_css_selector('a')
     driver.back()
 
 def selectProduct():
+    waitTextChanged('.search-results-notification')
+    ulog(''
     products=getElems('.items a')
     waitUntil(lambda:ulog('products=%s'%[(i,_.text) for i,_ in enumerate(products)])
     numProducts=len(products)
     for idx in numProducts:
         product=products[idx]
-        ulog('click "%s"'%getElemText(product))
-        clickElem(products[idx])
+        ulog('click "%s"'%product.text)
+        enterElem(products[idx])
         selectSupport()
         products=getElems('.items a')
     driver.back()
 
-    
-
-def selectSubCatg():
-    with UntilTextChanged('.filter-list'):
-        subCatgs=getElems('.filter-list a')
-    numSubCatgs=len(subCatgs)
-    for idx in numSubCatgs:
-        ulog('idx=%d'%idx)
-        ulog('click "%s"'%subCatgs[idx])
-        clickElem(subCatgs[idx])
-        subCatg=subCatg[idx].text
-        selectProduct()
-        subCatgs=getElems('.filter-list a')
-    driver.back()
+def enterElem(e:WebElement):
+   driver.get(e.get_attribute('href'))
 
 def selectCategory():
     global category, prevTrail
-    waitVisible('.filter-list')
-    with UntilTextChanged('.filter-list'):
-        cats=getElems('.filter-list a')
+    if len(prevTrail)==1:
+        waitVisible('.filter-list')
+    elif len(prevTrail)==2:
+        waitTextChanged('.search-results-notification')
+        # Your search for f returned 4196 results
+    
+    category = waitText('.accordion-activate a')
+    ulog('category="%s"'%category)
+
+    if not existElem('.filter-list'):
+        selectProduct()
+    cats=getElems('.filter-list a')
 
     retryUntilTrue(lambda: ulog('cats=%s'%[_.text for _ in cats]))
     numCats=len(cats)
+    startIdx = getStartIdx()
     for idx in range(startIdx, numCats):
         ulog('idx=%d'%idx)
         ulog('click "%s"'%cats[idx].text)
-        clickElem(cats[idx])
+        enterElem(cats[idx])
         category+=cats[idx].text
         prevTrail+=[idx]
-        selectCategory()
+        if len(prevTrail)==2:
+            selectCategory()
+        else:
+            selectProduct()
         prevTrail.pop()
-        cats = getElems('div.filter-list a')
+        cats = getElems('.filter-list a')
     driver.back()
     waitUntilTextChanged('.filter-list')
 
@@ -138,6 +162,7 @@ def getStartIdx():
     else:
         startIdx = 0
 
+charset='abcdefghijklmnopqrstuvwxyz0123456789'
 def main():
     global startTrail, prevTrail
     startTrail = [int(re.search(r'\d+', _).group(0)) for _ in sys.argv[1:]]

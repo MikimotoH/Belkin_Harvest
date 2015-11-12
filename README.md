@@ -1,13 +1,15 @@
-# Belkin_Harvest
+
+# Belkin Harvest
 Belkin Firmware Files Harvest
 
+## selectCategory() (1) 
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_f.png" >
 ```python
 >>>  [_.text for _ in CSSs('.filter-list a')]
 "['Access Points', 'Business', 'Business Networking', 'Cables', 'Commercial', 'Conserve', 'Desktop Accessories', 'Enterprise', 'Entertainment', 'Gaming', 'Home Theater', 'KVM', 'Kindle Tablets', 'Laptop', 'Modems', 'Network Adapters', 'Network Cameras', 'Network Switches', 'Power', 'Powerline', 'Router', 'Samsung Phone and Tablet', 'Tablet', 'Thunderbolt', 'USB and Firewire', 'VoIP', 'WEMO', 'Yolk Case Creation', 'iPad', 'iPhone 5', 'iPhone 6', 'iPhone, iPod and MP3']"
 ```
 
-
+## selectCategory() (2) 
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_f_Router.png" >
 ```python
 In [43]: CSS('.accordion-activate a').text
@@ -17,6 +19,7 @@ In [45]: str([_.text for _ in CSSs('.filter-list a')])
 Out[45]: "['10/100', 'AC1000 Wireless Router', 'AC1200 Wireless Router', 'AC1800 Wireless Router', 'AC2000', 'AC800', 'AC900 Wireless Router', 'B', 'Basic / Connect N150', 'G', 'N', 'N150', 'N150 Wireless Router', 'N300 Wireless Router', 'N450 Wireless Router', 'N600 DB Wireless Router', 'N750 DB Wireless Router', 'N900 DB Wireless Router', 'Play/Play Max/Play N600/Play N600 HD', 'Router', 'Share / Share MAX / Share N300', 'Surf / Surf N300', 'Surf N150', 'VPN', 'Wireless Dual Band N']"
 ```
 
+## selectProduct()
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_f_Router_G.png">
 ```python
 In [61]: CSS('.search-results-notification').text
@@ -26,6 +29,7 @@ In [64]: str([(i,_.text) for i,_ in enumerate(CSSs('.items a span'))])
 Out[64]: "[(0, 'G Wireless Router'), (1, 'Wireless G Travel Router'), (2, 'Wireless G+ MIMO Router'), (3, 'N150 Enhanced Wireless Router')]"
 ```
 
+## selectSupport()
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_f_Router_G_Wireless_G_Travel_Router.png">
 ```python
 In [75]: CSS('.product-name-price').text.strip()
@@ -41,24 +45,14 @@ In [80]: str([_.text for _ in CSSs('.icon-list-header-container')[2].find_elemen
 Out[80]: "['Belkin router firmware updates', 'Wireless G Travel Router F5D7233 v1 - Firmware (US)']"
 ```
 
-
-<img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_art_4971.png">
-```python
-In [87]: CSS('iframe[name~=inlineFrame]').get_attribute('src')
-Out[87]: 'http://belkin.force.com/Articles/apex/pkb_viewArticle?articleNum=000004971&l=en_US'
-```
-
-
-<img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_art_23.png">
-This page is another portal page, not download page. Go back. 
-
+## selectDownload() go into iframe
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_art4450.png">
 ```python
 In [96]: CSS('iframe[name~=inlineFrame]').get_attribute('src')
 Out[96]: 'http://belkin.force.com/Articles/apex/pkb_viewArticle?articleNum=000004450&l=en_US'
 ```
 
-
+## selectDownload() guess Date, fileSize, version
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_F5D7233v1_Download.png">
 ```python
 In [101]: CSS('#articleContainer').text                                                                                                                                
@@ -111,4 +105,15 @@ Release Notes:
   
 To know how to update the firmware of your router, click [here](http://www.belkin.com/us/support-article?articleNum=10797).
 ```
+
+## selectDownload() - Wrong Case
+<img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_art_4971.png">
+```python
+In [87]: CSS('iframe[name~=inlineFrame]').get_attribute('src')
+Out[87]: 'http://belkin.force.com/Articles/apex/pkb_viewArticle?articleNum=000004971&l=en_US'
+```
+
+## selectDownload() - Wrong Case
+<img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_art_23.png">
+This page is another portal page, not download page. Go back. 
 

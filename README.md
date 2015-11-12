@@ -73,6 +73,7 @@ After you download your firmware file click [here](http://www.belkin.com/us/supp
   * [Download](http://cache-www.belkin.com/support/dl/f5d7233v1_us_1_01_20.bin) version: 1.01.20, OS compatibility: Any, size: 768KB
 ```
 
+Use below functions to extrace version, fileSize, date
 ```python
 def guessVersion(txt:str)->str:
     m=re.search(r'version:\s*(\d+[\.\d]*)', txt, re.I)
@@ -80,6 +81,7 @@ def guessVersion(txt:str)->str:
         return m.group(1)
     else:
         return None
+
 
 def guessFileSize(txt:str)->int:
     m = re.search(r'size:\s*(\d+\.?\d+?)\s*(KB|MB)', txt, re.I)
@@ -89,12 +91,14 @@ def guessFileSize(txt:str)->int:
     else:
         return None
 
+
 def guessDate(txt:str) -> datetime:
     m = re.search(r'\d{1,2}/\d{1,2}/\d{4}', txt)
     if m:
         return datetime.strptime(m.group(0), '%m/%d/%Y')
     else:
         return None
+
 
 def getSizeDateVersion(txt:str, ithDownload:int)->(int,datetime,str,str):
     lines = txt.splitlines()

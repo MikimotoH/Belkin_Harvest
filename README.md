@@ -59,8 +59,8 @@ Use [html2text](https://github.com/aaronsw/html2text) to convert HTML to plain t
 ```python
 page_src = waitVisible('.sfdc_richtext').get_attribute('innerHTML')
 h = html2text.HTML2Text()
-h.ignore_emphasis=True
-h.body_width=0
+h.ignore_emphasis=True # don't add '*' surrounding word
+h.body_width=0 # don't wrap long line
 artTxt = h.handle(page_src)
 ```
 

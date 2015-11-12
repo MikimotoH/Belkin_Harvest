@@ -54,24 +54,6 @@ Out[96]: 'http://belkin.force.com/Articles/apex/pkb_viewArticle?articleNum=00000
 
 ## selectDownload() guess Date, fileSize, version
 <img src="https://raw.githubusercontent.com/MikimotoH/Belkin_Harvest/master/belkin_F5D7233v1_Download.png">
-```python
-In [101]: CSS('#articleContainer').text                                                                                                                                
-Out[101]: 'Wireless G Travel Router F5D7233 v1 - Firmware (US)\nAfter you download your firmware file click here for installation instructions.\nVersion 1xxx\nDownload version: 1.01.20, OS compatibility: Any, size: 768KB\n\n '
-
-In [102]: artTxt=CSS('#articleContainer').text
-
-# Get file_fize
-In [108]: re.search(r'size:(.+)', artTxt, re.IGNORECASE)
-Out[108]: <_sre.SRE_Match object; span=(195, 206), match='size: 768KB'>
-
-# Get firmware_version
-In [110]: re.search(r'version:\s*(\d+(\.\d+)*)', artTxt, re.IGNORECASE)
-Out[110]: <_sre.SRE_Match object; span=(154, 170), match='version: 1.01.20'>
-
-# Get download_url
-In [117]: next(_.get_attribute('href') for _ in CSSs('a') if _.text.startswith('Download'))
-Out[117]: 'http://cache-www.belkin.com/support/dl/f5d7233v1_us_1_01_20.bin'
-```
 
 Use [html2text](https://github.com/aaronsw/html2text) to convert HTML to plain text with URL link.
 ```python
@@ -84,26 +66,67 @@ artTxt = h.handle(page_src)
 
 The artTxt becomes to
 ```markdown
-Updating your wireless router's firmware fixes the previous version's bugs and improves its functionality.  This action must be done especially if you start experiencing connectivity issues with your device.  This article will provide you firmware updates for your Belkin AC 1800 DB Wi-Fi Dual-Band AC+ Gigabit Router, F9K1118 v2.    IMPORTANT:  This device has multiple versions.  Please check the version number on your router to ensure that you load the appropriate firmware below.  For instructions on how to find your version number, click [here](http://www.belkin.com/us/support-article?articleNum=8064).      Version 2 Firmware     IMPORTANT: Do NOT power cycle the Router during the firmware upgrade process.     Firmware version: 2.03.43   Post Date: 12/12/2014      Release Notes: 
+After you download your firmware file click [here](http://www.belkin.com/us/support-article?articleNum=10797) for installation instructions.  
 
-  * Resolved IPv6 connection issue for ISP customer.
-  * Resolved UPnP issue with customer device.[Download](http://cache-www.belkin.com/support/dl/F9K1118v2_WW_2.03.43.bin); Size: 7.48 MB  
-===========================================================================  
-Download version: 2.03.36  Post Date: 9/20/2013 
+###  Version 1xxx
 
-  * Initial release===========================================================================  
-Version 2 Firmware  
-   
-Post Date: 8/13/2014  
-   
-Release Notes:
+  * [Download](http://cache-www.belkin.com/support/dl/f5d7233v1_us_1_01_20.bin) version: 1.01.20, OS compatibility: Any, size: 768KB
+```
 
-  * Resolved 2.4 G low throughput issue while WAN port > 1 G Mbps
-  * Resolved WIFI UI SSID page for changing 20/40 MHz back to 20 MHz not working issue
-  * To support BCM4708/47081 rev. A4 chip
-[Download](http://cache-www.belkin.com/support/dl/F9K1118v2_WW_2.03.40.bin) version: 2.03.40; OS compatibility:  Windows 8 64 bit; Windows 8.1 32 bit; Windows 8.1 64 bit;  Windows 7 32 bit; Windows 7 64 bit; Windows Vista 32 bit; Windows Vista 64 bit; Mac OS 10.4  
-  
-To know how to update the firmware of your router, click [here](http://www.belkin.com/us/support-article?articleNum=10797).
+```python
+def guessVersion(txt:str)->str:
+    m=re.search(r'version:\s*(\d+[\.\d]*)', txt, re.I)
+    if m:
+        return m.group(1)
+    else:
+        return None
+
+def guessFileSize(txt:str)->int:
+    m = re.search(r'size:\s*(\d+\.?\d+?)\s*(KB|MB)', txt, re.I)
+    if m:
+        unitDic=dict(KB=1024,MB=1024*1024)
+        return int(float(m.group(1)) * unitDic[m.group(2).upper()])
+    else:
+        return None
+
+def guessDate(txt:str) -> datetime:
+    m = re.search(r'\d{1,2}/\d{1,2}/\d{4}', txt)
+    if m:
+        return datetime.strptime(m.group(0), '%m/%d/%Y')
+    else:
+        return None
+
+def getSizeDateVersion(txt:str, ithDownload:int)->(int,datetime,str,str):
+    lines = txt.splitlines()
+    def getLineIdx():
+        numDownloads=0
+        for lineIdx,line in enumerate(lines):
+            if '[Download]' in line:
+                if numDownloads == ithDownload:
+                    return lineIdx
+                numDownloads+=1
+        return -1
+    lineIdx=getLineIdx()
+    if lineIdx==-1:
+        raise StopIteration('ithDownload=%d'%ithDownload)
+    fileSize,relDate,version=None,None,None
+    downUrl=None
+    for idx,line in enumerate(lines[lineIdx::-1]):
+        line = line
+        if '[Download]'in line:
+            if idx>0:
+                break
+            if not downUrl:
+                downUrl=re.search(r'\[Download\]\((.+?)\)',line).group(1)
+        if not fileSize:
+            fileSize = guessFileSize(line)
+        if not relDate:
+            relDate = guessDate(line)
+        if not version:
+            version = guessVersion(line)
+        if fileSize is not None and relDate is not None and version is not None:
+            return fileSize,relDate,version,downUrl
+    return fileSize,relDate,version,downUrl
 ```
 
 ## selectDownload() - Wrong Case

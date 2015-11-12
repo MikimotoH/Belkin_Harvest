@@ -79,3 +79,36 @@ In [117]: next(_.get_attribute('href') for _ in CSSs('a') if _.text.startswith('
 Out[117]: 'http://cache-www.belkin.com/support/dl/f5d7233v1_us_1_01_20.bin'
 ```
 
+Use [html2text](https://github.com/aaronsw/html2text) to convert HTML to plain text with URL link.
+```python
+page_src = waitVisible('.sfdc_richtext').get_attribute('innerHTML')
+h = html2text.HTML2Text()
+h.ignore_emphasis=True
+h.body_width=0
+artTxt = h.handle(page_src)
+```
+
+The artTxt becomes to
+```markdown
+Updating your wireless router's firmware fixes the previous version's bugs and improves its functionality.  This action must be done especially if you start experiencing connectivity issues with your device.  This article will provide you firmware updates for your Belkin AC 1800 DB Wi-Fi Dual-Band AC+ Gigabit Router, F9K1118 v2.    IMPORTANT:  This device has multiple versions.  Please check the version number on your router to ensure that you load the appropriate firmware below.  For instructions on how to find your version number, click [here](http://www.belkin.com/us/support-article?articleNum=8064).      Version 2 Firmware     IMPORTANT: Do NOT power cycle the Router during the firmware upgrade process.     Firmware version: 2.03.43   Post Date: 12/12/2014      Release Notes: 
+
+  * Resolved IPv6 connection issue for ISP customer.
+  * Resolved UPnP issue with customer device.[Download](http://cache-www.belkin.com/support/dl/F9K1118v2_WW_2.03.43.bin); Size: 7.48 MB  
+===========================================================================  
+Download version: 2.03.36  Post Date: 9/20/2013 
+
+  * Initial release===========================================================================  
+Version 2 Firmware  
+   
+Post Date: 8/13/2014  
+   
+Release Notes:
+
+  * Resolved 2.4 G low throughput issue while WAN port > 1 G Mbps
+  * Resolved WIFI UI SSID page for changing 20/40 MHz back to 20 MHz not working issue
+  * To support BCM4708/47081 rev. A4 chip
+[Download](http://cache-www.belkin.com/support/dl/F9K1118v2_WW_2.03.40.bin) version: 2.03.40; OS compatibility:  Windows 8 64 bit; Windows 8.1 32 bit; Windows 8.1 64 bit;  Windows 7 32 bit; Windows 7 64 bit; Windows Vista 32 bit; Windows Vista 64 bit; Mac OS 10.4  
+  
+To know how to update the firmware of your router, click [here](http://www.belkin.com/us/support-article?articleNum=10797).
+```
+

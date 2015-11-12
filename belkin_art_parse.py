@@ -145,7 +145,7 @@ def guessDate(txt:str) -> datetime:
     else:
         return None
 
-def getSizeDateVersion(txt:str, ithDownload:int)->(int,datetime,str):
+def getSizeDateVersion(txt:str, ithDownload:int)->(int,datetime,str,str):
     lines = txt.splitlines()
     def getLineIdx():
         numDownloads=0

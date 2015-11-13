@@ -18,6 +18,7 @@ import random
 import math
 import html2text
 from belkin_art_parse import getSizeDateVersion
+from urllib import parse
 
 
 driver,conn=None,None
@@ -83,15 +84,24 @@ def retryUntilTrue(statement, timeOut:float=6.2, pollFreq:float=0.3):
     raise TimeoutException(getFuncName()+': timeOut=%f'%timeOut)
 
 
-def enterElem(e:WebElement):
-   driver.get(e.get_attribute('href'))
+def enterElem(e:WebElement, func):
+    prev_url = driver.current_url
+    uprint('prev_url='+prev_url)
+    next_url = e.get_attribute('href')
+    uprint('next_url='+next_url)
+    driver.get(next_url)
+    func(prev_url)
 
 
-def selectDownload():
+def selectDownload(prev_url):
     global driver,category,productName,model,prevTrail
     try:
         # switch to frame
-        pageUrl=waitVisible('iframe[name~=inlineFrame]').get_attribute('src')
+        try:
+            pageUrl=waitVisible('iframe[name~=inlineFrame]',30,0.4).get_attribute('src')
+        except TimeoutException:
+            ulog('url= '+driver.current_url)
+            driver.get(prev_url)
         # http://www.belkin.com/us/support-article?articleNum=4879
         driver.get(pageUrl)
         # convert html to Markdown Text
@@ -119,16 +129,14 @@ def selectDownload():
                 ' "%(relDate)s", "%(fwVer)s", %(fileSize)s,'
                 ' "%(downUrl)s", %(prevTrail)s '%glocals())
             prevTrail.pop()
-        driver.back()
-        waitVisible('iframe[name~=inlineFrame]')
-        driver.back()
-        waitVisible('.product-name-price')
+        driver.get(prev_url)
+        # waitVisible('.product-name-price')
     except Exception as ex:
         ipdb.set_trace()
         traceback.print_exc()
         driver.save_screenshot(getScriptName()+'_'+getFuncName()+'_excep.png')
 
-def selectSupport():
+def selectSupport(prev_url):
     global prevTrail,category,productName,model,driver
     CSS=driver.find_element_by_css_selector
     try:
@@ -143,10 +151,9 @@ def selectSupport():
         # 'F5D7233'
         if not productName:
             ulog('productName is empty, bypass!')
-            driver.back()
-            waitText('.search-results-notification')
+            driver.get(prev_url)
+            # waitText('.search-results-notification')
             return
-
         try:
             support = next(_ for _ in getElems('.icon-list-header-container') if getElemText(_).startswith('DOWNLOAD'))
         except StopIteration:
@@ -154,8 +161,8 @@ def selectSupport():
             trailStr=str(prevTrail)
             sql("INSERT OR REPLACE INTO TFiles(category, product_name, model, tree_trail) VALUES (:category, :model, :productName, :trailStr)", glocals())
             ulog('UPSERT "%(category)s", "%(model)s", "%(productName)s" %(prevTrail)s'%glocals())
-            driver.back()
-            waitText('.search-results-notification')
+            driver.get(prev_url)
+            # waitText('.search-results-notification')
             return
         downloads = support.find_elements_by_css_selector('a')
         numDownloads = len(downloads)
@@ -166,14 +173,13 @@ def selectSupport():
                 ulog('bypass %s,"%s" because it\'s Portal'%(idx,txt))
                 continue
             ulog('click %s,"%s"'%(idx,txt))
-            enterElem(downloads[idx])
             prevTrail += [idx]
-            selectDownload()
+            enterElem(downloads[idx],selectDownload)
             prevTrail.pop()
             support = next(_ for _ in getElems('.icon-list-header-container') if getElemText(_).startswith('DOWNLOAD'))
             downloads = support.find_elements_by_css_selector('a')
-        driver.back()
-        waitText('.search-results-notification')
+        driver.get(prev_url)
+        # waitText('.search-results-notification')
     except Exception as ex:
         ipdb.set_trace()
         traceback.print_exc()
@@ -181,7 +187,7 @@ def selectSupport():
 
 
 searchResultsNotification=""
-def selectProduct():
+def selectProduct(prev_url):
     global category, prevTrail, searchResultsNotification,driver
     try:
         searchResultsNotification=waitTextChanged('.search-results-notification', searchResultsNotification).strip()
@@ -192,11 +198,10 @@ def selectProduct():
         for idx in range(startIdx,numProducts):
             ulog('click %s,"%s"'%(idx,products[idx].text))
             prevTrail+=[idx]
-            enterElem(products[idx])
-            selectSupport()
+            enterElem(products[idx],selectSupport)
             prevTrail.pop()
             products=getElems('.items a')
-        driver.back()
+        driver.get(prev_url)
         searchResultsNotification=waitTextChanged('.search-results-notification', searchResultsNotification).strip()
     except Exception as ex:
         ipdb.set_trace()
@@ -204,11 +209,16 @@ def selectProduct():
         driver.save_screenshot(getScriptName()+'_'+getFuncName()+'_excep.png')
 
 
-def selectCategory():
+def selectCategory(prev_url):
     global category, prevTrail, searchResultsNotification,driver
     try:
         if len(prevTrail)==1:
-            waitVisible('.filter-list')
+            try:
+                waitVisible('.filter-list', 30, 0.4)
+            except TimeoutException:
+                ulog('No search results, url=%s'%driver.current_url)
+                driver.get(prev_url)
+                return
             searchResultsNotification=waitText('.search-results-notification').strip()
             # Your search for f returned 4196 results
         elif len(prevTrail)==2:
@@ -226,23 +236,23 @@ def selectCategory():
         startIdx = getStartIdx()
         for idx in range(startIdx, numCats):
             ulog('click %s,"%s"'%(idx,cats[idx].text))
-            enterElem(cats[idx])
             prevTrail+=[idx]
             if len(prevTrail)==2:
-                selectCategory()
+                enterElem(cats[idx], selectCategory)
             else:
-                selectProduct()
+                enterElem(cats[idx], selectProduct)
             prevTrail.pop()
             cats = getElems('.filter-list a')
-        driver.back()
-        searchResultsNotification=waitTextChanged('.search-results-notification', searchResultsNotification).strip()
+        if prev_url:
+            driver.get(prev_url)
+            searchResultsNotification=waitTextChanged('.search-results-notification', searchResultsNotification).strip()
     except Exception as ex:
         ipdb.set_trace()
         traceback.print_exc()
         driver.save_screenshot(getScriptName()+'_'+getFuncName()+'_excep.png')
 
 
-charset='abcdefghijklmnopqrstuvwxyz0123456789'
+keywords=['router','modem','gateway','switch','hub','access point','wireless','dsl', 'extender', 'wi-fi', 'repeater', 'camera']
 def main():
     global startTrail, prevTrail,driver,conn
     try:
@@ -265,14 +275,16 @@ def main():
             "UNIQUE(product_name,model,rel_date,fw_ver)"
             ")")
         driver=harvest_utils.getFirefox()
-        driver.implicitly_wait(2.0)
+        # driver.implicitly_wait(2.0)
         harvest_utils.driver=driver
         startIdx=getStartIdx()
-        for idx in range(startIdx, len(charset)):
-            ulog('idx=%s, search "%s"'%(idx,charset[idx]))
-            driver.get('http://www.belkin.com/us/support-search?search=%s'%charset[idx])
+        for idx in range(startIdx, len(keywords)):
+            keyword = parse.quote_plus(keywords[idx])
+            ulog('idx=%s, search "%s"'%(idx,keyword))
+            driver.get('http://www.belkin.com/us/support-search?search=%s'
+                %keyword)
             prevTrail+=[idx]
-            selectCategory()
+            selectCategory(None)
             prevTrail.pop()
     except Exception as ex:
         ipdb.set_trace()

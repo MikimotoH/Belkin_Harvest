@@ -141,7 +141,10 @@ def guessFileSize(txt:str)->int:
 def guessDate(txt:str) -> datetime:
     m = re.search(r'\d{1,2}/\d{1,2}/\d{4}', txt)
     if m:
-        return datetime.strptime(m.group(0), '%m/%d/%Y')
+        try:
+            return datetime.strptime(m.group(0), '%m/%d/%Y')
+        except ValueError:
+            return datetime.strptime(m.group(0), '%d/%m/%Y')
     else:
         return None
 
